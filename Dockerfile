@@ -17,6 +17,7 @@ RUN npm run build
 FROM base AS runner
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
+ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 
 COPY --from=builder /app/public ./public
