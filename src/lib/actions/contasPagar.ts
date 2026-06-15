@@ -112,39 +112,45 @@ function inserirConta(
     recorrencia_dias: number | null;
     conta_origem_id?: number | null;
   }
-) {
-  db.prepare(
-    `INSERT INTO contas_pagar (
+): number {
+  const result = db
+    .prepare(
+      `INSERT INTO contas_pagar (
       descricao, categoria, entidade, valor, vencimento, status,
       recorrencia, recorrencia_dias, forma_pagamento, prioridade, tipo,
       observacao, parcela_atual, parcelas_total, grupo_parcelamento_id,
       conta_origem_id
     ) VALUES (?, ?, ?, ?, ?, 'Pendente', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    input.descricao,
-    input.categoria,
-    input.entidade,
-    input.valor,
-    input.vencimento,
-    input.recorrencia,
-    input.recorrencia_dias,
-    input.forma_pagamento,
-    input.prioridade,
-    input.tipo,
-    input.observacao,
-    input.parcela_atual,
-    input.parcelas_total,
-    input.grupo_parcelamento_id,
-    input.conta_origem_id ?? null
-  );
+    )
+    .run(
+      input.descricao,
+      input.categoria,
+      input.entidade,
+      input.valor,
+      input.vencimento,
+      input.recorrencia,
+      input.recorrencia_dias,
+      input.forma_pagamento,
+      input.prioridade,
+      input.tipo,
+      input.observacao,
+      input.parcela_atual,
+      input.parcelas_total,
+      input.grupo_parcelamento_id,
+      input.conta_origem_id ?? null
+    );
+
+  return Number(result.lastInsertRowid);
 }
 
-export async function criarContaPagar(input: ContaPagarInput) {
+export async function criarContaPagar(input: ContaPagarInput): Promise<number[]> {
   const temParcelamento =
     !!input.parcelas_total &&
     !!input.parcela_atual &&
     input.parcelas_total > 1 &&
     input.parcela_atual <= input.parcelas_total;
+
+  const ids: number[] = [];
 
   if (temParcelamento) {
     const grupoId = randomUUID();
@@ -157,29 +163,35 @@ export async function criarContaPagar(input: ContaPagarInput) {
           ? input.vencimento
           : addMonthsSameDayISO(input.vencimento, parcela - parcelaInicial);
 
-      inserirConta({
-        ...input,
-        vencimento,
-        recorrencia: "Unica",
-        recorrencia_dias: null,
-        parcela_atual: parcela,
-        parcelas_total: totalParcelas,
-        grupo_parcelamento_id: grupoId,
-      });
+      ids.push(
+        inserirConta({
+          ...input,
+          vencimento,
+          recorrencia: "Unica",
+          recorrencia_dias: null,
+          parcela_atual: parcela,
+          parcelas_total: totalParcelas,
+          grupo_parcelamento_id: grupoId,
+        })
+      );
     }
   } else {
-    inserirConta({
-      ...input,
-      parcela_atual: null,
-      parcelas_total: null,
-      grupo_parcelamento_id: null,
-    });
+    ids.push(
+      inserirConta({
+        ...input,
+        parcela_atual: null,
+        parcelas_total: null,
+        grupo_parcelamento_id: null,
+      })
+    );
   }
 
   revalidatePath("/contas");
   revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
+
+  return ids;
 }
 
 export async function atualizarContaPagar(

@@ -1,14 +1,20 @@
-import { listarCategorias } from "@/lib/actions/categorias";
+import { listarCategorias, listarCategoriasMovimento } from "@/lib/actions/categorias";
 import { getSaldoInicial } from "@/lib/actions/configuracoes";
 import CategoriaLista from "@/components/CategoriaLista";
+import CategoriaMovimentoLista from "@/components/CategoriaMovimentoLista";
 import SaldoInicialForm from "@/components/SaldoInicialForm";
+import ExportacoesSection from "@/components/ExportacoesSection";
+import ImportacaoSection from "@/components/ImportacaoSection";
+import { getPeriodo } from "@/lib/dates";
 
 export default async function ConfiguracoesPage() {
   const [categoriasContas, categoriasMovimento, saldoInicial] = await Promise.all([
     listarCategorias("contas"),
-    listarCategorias("movimento"),
+    listarCategoriasMovimento(),
     getSaldoInicial(),
   ]);
+
+  const periodoAtual = getPeriodo("quinzena");
 
   return (
     <div className="flex flex-col gap-4">
@@ -39,11 +45,16 @@ export default async function ConfiguracoesPage() {
             Categorias - Movimento de Caixa
           </h2>
           <p className="mb-3 text-sm text-zinc-500">
-            Usadas nos lançamentos do caixa (entradas e saídas), para DRE.
+            Cada categoria pertence a Entrada ou Saída e aparece apenas no
+            tipo correspondente ao lançar um movimento. Clique em
+            &quot;Subcategorias&quot; para gerenciar as subcategorias de cada uma.
           </p>
-          <CategoriaLista tipo="movimento" categorias={categoriasMovimento} />
+          <CategoriaMovimentoLista categorias={categoriasMovimento} />
         </div>
       </div>
+
+      <ExportacoesSection periodoAtual={periodoAtual} />
+      <ImportacaoSection />
     </div>
   );
 }

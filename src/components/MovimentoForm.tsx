@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ENTIDADES, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { formatBRL, formatDateBR } from "@/lib/format";
-import { MovimentoCaixa as MovimentoType } from "@/lib/types";
+import { CategoriaMovimentoRow, MovimentoCaixa as MovimentoType } from "@/lib/types";
 import { todayISO } from "@/lib/dates";
 
 interface ContaParaVinculo {
@@ -15,7 +15,7 @@ interface ContaParaVinculo {
 }
 
 interface MovimentoFormProps {
-  categorias: string[];
+  categorias: CategoriaMovimentoRow[];
   contasPendentes: ContaParaVinculo[];
   movimento?: MovimentoType | null;
   action: (formData: FormData) => void;
@@ -28,7 +28,18 @@ export default function MovimentoForm({
   action,
 }: MovimentoFormProps) {
   const [tipo, setTipo] = useState(movimento?.tipo ?? "Saida");
+  const [categoria, setCategoria] = useState(movimento?.categoria ?? "");
   const ehEdicao = !!movimento;
+
+  const categoriasDoTipo = useMemo(
+    () => categorias.filter((c) => c.tipo === tipo),
+    [categorias, tipo]
+  );
+
+  const subcategorias = useMemo(
+    () => categoriasDoTipo.find((c) => c.nome === categoria)?.subcategorias ?? [],
+    [categoriasDoTipo, categoria]
+  );
 
   return (
     <form action={action} className="flex flex-col gap-4 rounded-lg bg-white p-4 shadow sm:p-6">
@@ -49,7 +60,10 @@ export default function MovimentoForm({
                 value="Entrada"
                 className="sr-only"
                 checked={tipo === "Entrada"}
-                onChange={() => setTipo("Entrada")}
+                onChange={() => {
+                  setTipo("Entrada");
+                  setCategoria("");
+                }}
               />
               Entrada
             </label>
@@ -66,7 +80,10 @@ export default function MovimentoForm({
                 value="Saida"
                 className="sr-only"
                 checked={tipo === "Saida"}
-                onChange={() => setTipo("Saida")}
+                onChange={() => {
+                  setTipo("Saida");
+                  setCategoria("");
+                }}
               />
               Saída
             </label>
@@ -101,19 +118,38 @@ export default function MovimentoForm({
           <select
             name="categoria"
             required
-            defaultValue={movimento?.categoria ?? ""}
+            value={categoria}
+            onChange={(e) => setCategoria(e.target.value)}
             className="rounded-md border border-zinc-300 px-3 py-2 text-base"
           >
             <option value="" disabled>
               Selecione...
             </option>
-            {categorias.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            {categoriasDoTipo.map((cat) => (
+              <option key={cat.id} value={cat.nome}>
+                {cat.nome}
               </option>
             ))}
           </select>
         </div>
+
+        {subcategorias.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-zinc-700">Subcategoria</label>
+            <select
+              name="subcategoria"
+              defaultValue={movimento?.subcategoria ?? ""}
+              className="rounded-md border border-zinc-300 px-3 py-2 text-base"
+            >
+              <option value="">Nenhuma</option>
+              {subcategorias.map((sub) => (
+                <option key={sub.id} value={sub.nome}>
+                  {sub.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-zinc-700">CNPJ/PF</label>
@@ -162,14 +198,14 @@ export default function MovimentoForm({
         </div>
 
         {tipo === "Saida" && (
-          <div className="flex flex-col gap-1 sm:col-span-2">
+          <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
             <label className="text-sm font-medium text-zinc-700">
               Vincular a uma conta a pagar (opcional)
             </label>
             <select
               name="conta_pagar_id"
               defaultValue={movimento?.conta_pagar_id ?? ""}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-base"
+              className="w-full min-w-0 rounded-md border border-zinc-300 px-3 py-2 text-base"
             >
               <option value="">Nenhuma</option>
               {contasPendentes.map((c) => (

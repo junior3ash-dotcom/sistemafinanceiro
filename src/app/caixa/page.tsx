@@ -64,7 +64,8 @@ export default async function CaixaPage() {
                 <span className="font-medium text-zinc-800">{m.descricao}</span>
               </div>
               <div className="text-sm text-zinc-500">
-                {formatDateBR(m.data)} · {m.categoria} · {m.entidade}
+                {formatDateBR(m.data)} · {m.categoria}
+                {m.subcategoria && ` / ${m.subcategoria}`} · {m.entidade}
                 {m.conta_pagar_id && (
                   <span className="ml-1 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
                     vinculado a conta #{m.conta_pagar_id}

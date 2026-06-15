@@ -17,6 +17,7 @@ function parseFormData(formData: FormData): MovimentoInput {
     data: String(formData.get("data") ?? ""),
     descricao: String(formData.get("descricao") ?? "").trim(),
     categoria: String(formData.get("categoria") ?? ""),
+    subcategoria: String(formData.get("subcategoria") ?? "") || null,
     entidade: formData.get("entidade") as Entidade,
     tipo,
     valor: parseBRLInput(String(formData.get("valor") ?? "0")),

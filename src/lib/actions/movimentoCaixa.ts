@@ -13,6 +13,7 @@ export interface MovimentoInput {
   data: string;
   descricao: string;
   categoria: string;
+  subcategoria: string | null;
   entidade: Entidade;
   tipo: TipoMovimento;
   valor: number;
@@ -22,7 +23,7 @@ export interface MovimentoInput {
 }
 
 const SELECT_BASE = `
-  SELECT id, data, descricao, categoria, entidade, tipo, valor,
+  SELECT id, data, descricao, categoria, subcategoria, entidade, tipo, valor,
          forma_pagamento, observacao, conta_pagar_id, criado_em
   FROM movimento_caixa
 `;
@@ -96,13 +97,14 @@ export async function getMovimento(id: number): Promise<MovimentoCaixa | null> {
 export async function criarMovimento(input: MovimentoInput) {
   db.prepare(
     `INSERT INTO movimento_caixa (
-      data, descricao, categoria, entidade, tipo, valor, forma_pagamento,
+      data, descricao, categoria, subcategoria, entidade, tipo, valor, forma_pagamento,
       observacao, conta_pagar_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     input.data,
     input.descricao,
     input.categoria,
+    input.subcategoria,
     input.entidade,
     input.tipo,
     input.valor,
@@ -126,13 +128,14 @@ export async function atualizarMovimento(id: number, input: MovimentoInput) {
 
   db.prepare(
     `UPDATE movimento_caixa SET
-      data = ?, descricao = ?, categoria = ?, entidade = ?, tipo = ?, valor = ?,
+      data = ?, descricao = ?, categoria = ?, subcategoria = ?, entidade = ?, tipo = ?, valor = ?,
       forma_pagamento = ?, observacao = ?, conta_pagar_id = ?
     WHERE id = ?`
   ).run(
     input.data,
     input.descricao,
     input.categoria,
+    input.subcategoria,
     input.entidade,
     input.tipo,
     input.valor,

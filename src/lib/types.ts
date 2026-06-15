@@ -38,6 +38,7 @@ export interface MovimentoCaixa {
   data: string; // ISO yyyy-mm-dd
   descricao: string;
   categoria: string;
+  subcategoria: string | null;
   entidade: Entidade;
   tipo: TipoMovimento;
   valor: number;
@@ -50,4 +51,16 @@ export interface MovimentoCaixa {
 export interface CategoriaRow {
   id: number;
   nome: string;
+}
+
+export interface SubcategoriaRow {
+  id: number;
+  nome: string;
+}
+
+export interface CategoriaMovimentoRow {
+  id: number;
+  nome: string;
+  tipo: TipoMovimento;
+  subcategorias: SubcategoriaRow[];
 }

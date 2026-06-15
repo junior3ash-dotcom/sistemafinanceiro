@@ -20,3 +20,9 @@ export function formatDateBR(iso: string | null): string {
   const [ano, mes, dia] = iso.split("-");
   return `${dia}/${mes}/${ano}`;
 }
+
+export function formatDateTimeBR(valor: string | null): string {
+  if (!valor) return "";
+  const [data, hora] = valor.split(" ");
+  return hora ? `${formatDateBR(data)} ${hora}` : formatDateBR(data);
+}

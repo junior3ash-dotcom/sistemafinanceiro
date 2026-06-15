@@ -17,21 +17,21 @@ const CATEGORIAS_CONTAS = [
   "Outros",
 ];
 
-const CATEGORIAS_MOVIMENTO = [
-  "Vendas Shopee Loja 1",
-  "Vendas Shopee Loja 2",
-  "Vendas Amazon",
-  "Vendas TikTok Shop",
-  "Vendas Mercado Livre",
-  "Matéria-prima",
-  "Embalagens",
-  "Marketing/Ads",
-  "Taxas Marketplace",
-  "Frete",
-  "Impostos",
-  "Energia/Internet",
-  "Retirada Pró-labore",
-  "Outros",
+const CATEGORIAS_MOVIMENTO: { nome: string; tipo: "Entrada" | "Saida" }[] = [
+  { nome: "Vendas Shopee Loja 1", tipo: "Entrada" },
+  { nome: "Vendas Shopee Loja 2", tipo: "Entrada" },
+  { nome: "Vendas Amazon", tipo: "Entrada" },
+  { nome: "Vendas TikTok Shop", tipo: "Entrada" },
+  { nome: "Vendas Mercado Livre", tipo: "Entrada" },
+  { nome: "Matéria-prima", tipo: "Saida" },
+  { nome: "Embalagens", tipo: "Saida" },
+  { nome: "Marketing/Ads", tipo: "Saida" },
+  { nome: "Taxas Marketplace", tipo: "Saida" },
+  { nome: "Frete", tipo: "Saida" },
+  { nome: "Impostos", tipo: "Saida" },
+  { nome: "Energia/Internet", tipo: "Saida" },
+  { nome: "Retirada Pró-labore", tipo: "Saida" },
+  { nome: "Outros", tipo: "Saida" },
 ];
 
 export function seedIfEmpty() {
@@ -56,9 +56,11 @@ export function seedIfEmpty() {
 
   if (totalCategoriasMovimento === 0) {
     const inserirCategoriaMovimento = db.prepare(
-      "INSERT INTO categorias_movimento (nome) VALUES (?)"
+      "INSERT INTO categorias_movimento (nome, tipo) VALUES (?, ?)"
     );
-    for (const nome of CATEGORIAS_MOVIMENTO) inserirCategoriaMovimento.run(nome);
+    for (const { nome, tipo } of CATEGORIAS_MOVIMENTO) {
+      inserirCategoriaMovimento.run(nome, tipo);
+    }
   }
 
   const totalConfig = (

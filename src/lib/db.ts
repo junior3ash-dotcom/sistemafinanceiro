@@ -34,7 +34,16 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS categorias_movimento (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL UNIQUE
+    nome TEXT NOT NULL UNIQUE,
+    tipo TEXT NOT NULL DEFAULT 'Saida'
+  );
+
+  CREATE TABLE IF NOT EXISTS categorias_movimento_sub (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    categoria_id INTEGER NOT NULL,
+    nome TEXT NOT NULL,
+    UNIQUE (categoria_id, nome),
+    FOREIGN KEY (categoria_id) REFERENCES categorias_movimento(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS contas_pagar (
@@ -79,6 +88,28 @@ db.exec(`
     valor TEXT NOT NULL
   );
 `);
+
+// Migrações para bancos criados antes da introdução de tipo/subcategorias
+// em categorias_movimento e movimento_caixa.
+function colunaExiste(tabela: string, coluna: string): boolean {
+  const colunas = db.prepare(`PRAGMA table_info(${tabela})`).all() as {
+    name: string;
+  }[];
+  return colunas.some((c) => c.name === coluna);
+}
+
+if (!colunaExiste("categorias_movimento", "tipo")) {
+  db.exec(
+    "ALTER TABLE categorias_movimento ADD COLUMN tipo TEXT NOT NULL DEFAULT 'Saida'"
+  );
+  db.exec(
+    "UPDATE categorias_movimento SET tipo = 'Entrada' WHERE nome LIKE 'Vendas%'"
+  );
+}
+
+if (!colunaExiste("movimento_caixa", "subcategoria")) {
+  db.exec("ALTER TABLE movimento_caixa ADD COLUMN subcategoria TEXT");
+}
 
 import { seedIfEmpty } from "./seed";
 seedIfEmpty();
