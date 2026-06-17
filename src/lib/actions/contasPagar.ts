@@ -2,15 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { db } from "@/lib/db";
+import { dbAll, dbGet, dbRun } from "@/lib/db";
 import { addDaysISO, addMonthsSameDayISO, todayISO } from "@/lib/dates";
-import {
-  ContaPagar,
-  Entidade,
-  Prioridade,
-  Recorrencia,
-  TipoConta,
-} from "@/lib/types";
+import { ContaPagar, Entidade, Prioridade, Recorrencia, TipoConta } from "@/lib/types";
 
 export interface ContaPagarInput {
   descricao: string;
@@ -47,62 +41,43 @@ const SELECT_BASE = `
 export async function listarContasPagar(
   filtros: FiltrosContasPagar = {}
 ): Promise<ContaPagar[]> {
-  const condicoes: string[] = [];
+  const cond: string[] = [];
   const params: (string | number)[] = [];
 
-  if (filtros.categoria) {
-    condicoes.push("categoria = ?");
-    params.push(filtros.categoria);
-  }
-  if (filtros.entidade) {
-    condicoes.push("entidade = ?");
-    params.push(filtros.entidade);
-  }
-  if (filtros.tipo) {
-    condicoes.push("tipo = ?");
-    params.push(filtros.tipo);
-  }
-  if (filtros.prioridade) {
-    condicoes.push("prioridade = ?");
-    params.push(filtros.prioridade);
-  }
+  if (filtros.categoria) { cond.push("categoria = ?"); params.push(filtros.categoria); }
+  if (filtros.entidade) { cond.push("entidade = ?"); params.push(filtros.entidade); }
+  if (filtros.tipo) { cond.push("tipo = ?"); params.push(filtros.tipo); }
+  if (filtros.prioridade) { cond.push("prioridade = ?"); params.push(filtros.prioridade); }
 
   if (filtros.status === "Pago") {
-    condicoes.push("status = 'Pago'");
+    cond.push("status = 'Pago'");
   } else if (filtros.status === "Pendente") {
-    condicoes.push("status = 'Pendente' AND vencimento >= ?");
+    cond.push("status = 'Pendente' AND vencimento >= ?");
     params.push(todayISO());
   } else if (filtros.status === "Vencido") {
-    condicoes.push("status = 'Pendente' AND vencimento < ?");
+    cond.push("status = 'Pendente' AND vencimento < ?");
     params.push(todayISO());
   } else if (filtros.status === "Abertas") {
-    condicoes.push("status = 'Pendente'");
+    cond.push("status = 'Pendente'");
   }
 
-  const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
-  const sql = `${SELECT_BASE} ${where} ORDER BY vencimento ASC, id ASC`;
-
-  return db.prepare(sql).all(...params) as ContaPagar[];
+  const where = cond.length ? `WHERE ${cond.join(" AND ")}` : "";
+  return dbAll<ContaPagar>(`${SELECT_BASE} ${where} ORDER BY vencimento ASC, id ASC`, params);
 }
 
 export async function getContaPagar(id: number): Promise<ContaPagar | null> {
-  const row = db
-    .prepare(`${SELECT_BASE} WHERE id = ?`)
-    .get(id) as ContaPagar | undefined;
-  return row ?? null;
+  return dbGet<ContaPagar>(`${SELECT_BASE} WHERE id = ?`, [id]);
 }
 
 export async function listarProximos15Dias(): Promise<ContaPagar[]> {
-  const hoje = todayISO();
-  const limite = addDaysISO(hoje, 15);
-  return db
-    .prepare(
-      `${SELECT_BASE} WHERE status = 'Pendente' AND vencimento <= ? ORDER BY vencimento ASC, id ASC`
-    )
-    .all(limite) as ContaPagar[];
+  const limite = addDaysISO(todayISO(), 15);
+  return dbAll<ContaPagar>(
+    `${SELECT_BASE} WHERE status = 'Pendente' AND vencimento <= ? ORDER BY vencimento ASC, id ASC`,
+    [limite]
+  );
 }
 
-function inserirConta(
+async function inserirConta(
   input: ContaPagarInput & {
     vencimento: string;
     parcela_atual: number | null;
@@ -112,35 +87,22 @@ function inserirConta(
     recorrencia_dias: number | null;
     conta_origem_id?: number | null;
   }
-): number {
-  const result = db
-    .prepare(
-      `INSERT INTO contas_pagar (
+): Promise<number> {
+  const { lastInsertRowid } = await dbRun(
+    `INSERT INTO contas_pagar (
       descricao, categoria, entidade, valor, vencimento, status,
       recorrencia, recorrencia_dias, forma_pagamento, prioridade, tipo,
-      observacao, parcela_atual, parcelas_total, grupo_parcelamento_id,
-      conta_origem_id
-    ) VALUES (?, ?, ?, ?, ?, 'Pendente', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      input.descricao,
-      input.categoria,
-      input.entidade,
-      input.valor,
-      input.vencimento,
-      input.recorrencia,
-      input.recorrencia_dias,
-      input.forma_pagamento,
-      input.prioridade,
-      input.tipo,
-      input.observacao,
-      input.parcela_atual,
-      input.parcelas_total,
-      input.grupo_parcelamento_id,
-      input.conta_origem_id ?? null
-    );
-
-  return Number(result.lastInsertRowid);
+      observacao, parcela_atual, parcelas_total, grupo_parcelamento_id, conta_origem_id
+    ) VALUES (?, ?, ?, ?, ?, 'Pendente', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      input.descricao, input.categoria, input.entidade, input.valor, input.vencimento,
+      input.recorrencia, input.recorrencia_dias, input.forma_pagamento,
+      input.prioridade, input.tipo, input.observacao,
+      input.parcela_atual, input.parcelas_total,
+      input.grupo_parcelamento_id, input.conta_origem_id ?? null,
+    ]
+  );
+  return lastInsertRowid;
 }
 
 export async function criarContaPagar(input: ContaPagarInput): Promise<number[]> {
@@ -164,7 +126,7 @@ export async function criarContaPagar(input: ContaPagarInput): Promise<number[]>
           : addMonthsSameDayISO(input.vencimento, parcela - parcelaInicial);
 
       ids.push(
-        inserirConta({
+        await inserirConta({
           ...input,
           vencimento,
           recorrencia: "Unica",
@@ -177,7 +139,7 @@ export async function criarContaPagar(input: ContaPagarInput): Promise<number[]>
     }
   } else {
     ids.push(
-      inserirConta({
+      await inserirConta({
         ...input,
         parcela_atual: null,
         parcelas_total: null,
@@ -190,37 +152,23 @@ export async function criarContaPagar(input: ContaPagarInput): Promise<number[]>
   revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
-
   return ids;
 }
 
-export async function atualizarContaPagar(
-  id: number,
-  input: ContaPagarInput
-) {
-  db.prepare(
+export async function atualizarContaPagar(id: number, input: ContaPagarInput) {
+  await dbRun(
     `UPDATE contas_pagar SET
       descricao = ?, categoria = ?, entidade = ?, valor = ?, vencimento = ?,
       recorrencia = ?, recorrencia_dias = ?, forma_pagamento = ?, prioridade = ?,
       tipo = ?, observacao = ?, parcela_atual = ?, parcelas_total = ?
-    WHERE id = ?`
-  ).run(
-    input.descricao,
-    input.categoria,
-    input.entidade,
-    input.valor,
-    input.vencimento,
-    input.recorrencia,
-    input.recorrencia_dias,
-    input.forma_pagamento,
-    input.prioridade,
-    input.tipo,
-    input.observacao,
-    input.parcela_atual,
-    input.parcelas_total,
-    id
+    WHERE id = ?`,
+    [
+      input.descricao, input.categoria, input.entidade, input.valor, input.vencimento,
+      input.recorrencia, input.recorrencia_dias, input.forma_pagamento,
+      input.prioridade, input.tipo, input.observacao,
+      input.parcela_atual, input.parcelas_total, id,
+    ]
   );
-
   revalidatePath("/contas");
   revalidatePath("/contas/proximos");
   revalidatePath("/");
@@ -228,11 +176,8 @@ export async function atualizarContaPagar(
 }
 
 export async function excluirContaPagar(id: number) {
-  db.prepare("DELETE FROM contas_pagar WHERE id = ?").run(id);
-  db.prepare(
-    "UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?"
-  ).run(id);
-
+  await dbRun("DELETE FROM contas_pagar WHERE id = ?", [id]);
+  await dbRun("UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?", [id]);
   revalidatePath("/contas");
   revalidatePath("/contas/proximos");
   revalidatePath("/");
@@ -241,34 +186,26 @@ export async function excluirContaPagar(id: number) {
 
 function calcularProximoVencimento(conta: ContaPagar): string | null {
   switch (conta.recorrencia) {
-    case "Mensal":
-      return addMonthsSameDayISO(conta.vencimento, 1);
-    case "Quinzenal":
-      return addDaysISO(conta.vencimento, 15);
-    case "Semanal":
-      return addDaysISO(conta.vencimento, 7);
-    case "Personalizada":
-      return addDaysISO(conta.vencimento, conta.recorrencia_dias ?? 30);
-    case "Unica":
-    default:
-      return null;
+    case "Mensal": return addMonthsSameDayISO(conta.vencimento, 1);
+    case "Quinzenal": return addDaysISO(conta.vencimento, 15);
+    case "Semanal": return addDaysISO(conta.vencimento, 7);
+    case "Personalizada": return addDaysISO(conta.vencimento, conta.recorrencia_dias ?? 30);
+    default: return null;
   }
 }
 
-export async function marcarContaComoPaga(
-  id: number,
-  dataPagamento: string = todayISO()
-) {
+export async function marcarContaComoPaga(id: number, dataPagamento: string = todayISO()) {
   const conta = await getContaPagar(id);
   if (!conta) return;
 
-  db.prepare(
-    "UPDATE contas_pagar SET status = 'Pago', data_pagamento = ? WHERE id = ?"
-  ).run(dataPagamento, id);
+  await dbRun(
+    "UPDATE contas_pagar SET status = 'Pago', data_pagamento = ? WHERE id = ?",
+    [dataPagamento, id]
+  );
 
   const proximoVencimento = calcularProximoVencimento(conta);
   if (proximoVencimento) {
-    inserirConta({
+    await inserirConta({
       descricao: conta.descricao,
       categoria: conta.categoria,
       entidade: conta.entidade,
@@ -294,14 +231,14 @@ export async function marcarContaComoPaga(
 }
 
 export async function marcarContaComoPendente(id: number) {
-  db.prepare(
-    "UPDATE contas_pagar SET status = 'Pendente', data_pagamento = NULL WHERE id = ?"
-  ).run(id);
-
-  db.prepare(
-    "UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?"
-  ).run(id);
-
+  await dbRun(
+    "UPDATE contas_pagar SET status = 'Pendente', data_pagamento = NULL WHERE id = ?",
+    [id]
+  );
+  await dbRun(
+    "UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?",
+    [id]
+  );
   revalidatePath("/contas");
   revalidatePath("/contas/proximos");
   revalidatePath("/");

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
+import { dbAll } from "@/lib/db";
 import { MovimentoCaixa } from "@/lib/types";
 import { formatDateBR, formatDateTimeBR } from "@/lib/format";
 import { toCSV, numeroBR, csvResponse } from "@/lib/csv";
@@ -18,38 +18,18 @@ export async function GET(request: NextRequest) {
   }
   sql += " ORDER BY data, id";
 
-  const rows = db.prepare(sql).all(...params) as MovimentoCaixa[];
+  const rows = await dbAll<MovimentoCaixa>(sql, params);
 
   const header = [
-    "ID",
-    "Data",
-    "Descrição",
-    "Categoria",
-    "Subcategoria",
-    "Entidade",
-    "Tipo",
-    "Valor",
-    "Forma de Pagamento",
-    "Observação",
-    "Conta a Pagar ID",
-    "Criado Em",
+    "ID", "Data", "Descrição", "Categoria", "Subcategoria", "Entidade",
+    "Tipo", "Valor", "Forma de Pagamento", "Observação", "Conta a Pagar ID", "Criado Em",
   ];
 
   const data = rows.map((r) => [
-    r.id,
-    formatDateBR(r.data),
-    r.descricao,
-    r.categoria,
-    r.subcategoria,
-    r.entidade,
-    r.tipo,
-    numeroBR(r.valor),
-    r.forma_pagamento,
-    r.observacao,
-    r.conta_pagar_id,
-    formatDateTimeBR(r.criado_em),
+    r.id, formatDateBR(r.data), r.descricao, r.categoria, r.subcategoria,
+    r.entidade, r.tipo, numeroBR(r.valor), r.forma_pagamento,
+    r.observacao, r.conta_pagar_id, formatDateTimeBR(r.criado_em),
   ]);
 
-  const csv = toCSV([header, ...data]);
-  return csvResponse(csv, `movimento_caixa_${todayISO()}.csv`);
+  return csvResponse(toCSV([header, ...data]), `movimento_caixa_${todayISO()}.csv`);
 }
