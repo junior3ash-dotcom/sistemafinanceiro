@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listarContasMesVigenteEVencidas } from "@/lib/actions/contasPagar";
+import { listarContasMesVigenteEVencidas, listarContasPagar } from "@/lib/actions/contasPagar";
 import { listarCategorias } from "@/lib/actions/categorias";
 import { getResumoMesVigente } from "@/lib/actions/dashboard";
 import { ENTIDADES, PRIORIDADES, TIPOS_CONTA } from "@/lib/constants";
@@ -13,25 +13,31 @@ interface PageProps {
     entidade?: string;
     tipo?: string;
     prioridade?: string;
+    periodo?: string;
   }>;
 }
 
 export default async function ContasPage({ searchParams }: PageProps) {
   const filtros = await searchParams;
+  const verTodosMeses = filtros.periodo === "todos";
+
+  const filtrosLista = {
+    status: filtros.status as
+      | "Vencido"
+      | "Pendente"
+      | "Pago"
+      | "Abertas"
+      | undefined,
+    categoria: filtros.categoria,
+    entidade: filtros.entidade,
+    tipo: filtros.tipo,
+    prioridade: filtros.prioridade,
+  };
 
   const [contas, categorias, resumo] = await Promise.all([
-    listarContasMesVigenteEVencidas({
-      status: filtros.status as
-        | "Vencido"
-        | "Pendente"
-        | "Pago"
-        | "Abertas"
-        | undefined,
-      categoria: filtros.categoria,
-      entidade: filtros.entidade,
-      tipo: filtros.tipo,
-      prioridade: filtros.prioridade,
-    }),
+    verTodosMeses
+      ? listarContasPagar(filtrosLista)
+      : listarContasMesVigenteEVencidas(filtrosLista),
     listarCategorias("contas"),
     getResumoMesVigente(),
   ]);
@@ -127,7 +133,22 @@ export default async function ContasPage({ searchParams }: PageProps) {
         </p>
       </div>
 
+      <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow">
+        <span className="text-sm text-zinc-500">
+          {verTodosMeses
+            ? "Mostrando contas de todos os meses"
+            : "Mostrando contas do mês vigente + vencidas"}
+        </span>
+        <Link
+          href={verTodosMeses ? "/contas" : "/contas?periodo=todos"}
+          className="rounded-md bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-200"
+        >
+          {verTodosMeses ? "Ver só mês vigente + vencidas" : "Ver todos os meses"}
+        </Link>
+      </div>
+
       <form className="grid grid-cols-2 gap-2 rounded-lg bg-white p-3 shadow sm:grid-cols-5" method="get">
+        <input type="hidden" name="periodo" value={filtros.periodo ?? ""} />
         <select
           name="status"
           defaultValue={filtros.status ?? "Abertas"}

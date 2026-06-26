@@ -25,6 +25,7 @@ function parseFormData(formData: FormData): MovimentoInput {
     observacao: String(formData.get("observacao") ?? "") || null,
     conta_pagar_id:
       tipo === "Saida" && contaPagarIdRaw ? Number(contaPagarIdRaw) : null,
+    conta_bancaria_id: Number(formData.get("conta_bancaria_id")),
   };
 }
 

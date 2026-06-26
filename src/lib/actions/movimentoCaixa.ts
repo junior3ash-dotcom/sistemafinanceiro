@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { dbAll, dbGet, dbRun } from "@/lib/db";
 import { Entidade, MovimentoCaixa, TipoMovimento } from "@/lib/types";
 import { marcarContaComoPaga, marcarContaComoPendente } from "./contasPagar";
-import { getSaldoInicial } from "./configuracoes";
+import { getSaldoCaixaGeral } from "./contasBancarias";
 
 export interface MovimentoInput {
   data: string;
@@ -17,11 +17,12 @@ export interface MovimentoInput {
   forma_pagamento: string | null;
   observacao: string | null;
   conta_pagar_id: number | null;
+  conta_bancaria_id: number | null;
 }
 
 const SELECT_BASE = `
   SELECT id, data, descricao, categoria, subcategoria, entidade, tipo, valor,
-         forma_pagamento, observacao, conta_pagar_id, criado_em
+         forma_pagamento, observacao, conta_pagar_id, conta_bancaria_id, criado_em
   FROM movimento_caixa
 `;
 
@@ -44,9 +45,13 @@ export interface MovimentoComSaldo extends MovimentoCaixa {
 }
 
 export async function listarMovimentosComSaldo(): Promise<MovimentoComSaldo[]> {
-  const saldoInicial = await getSaldoInicial();
   const movimentos = await listarMovimentos();
-  let saldo = saldoInicial;
+  const totalMovimentado = movimentos.reduce(
+    (acc, m) => acc + (m.tipo === "Entrada" ? m.valor : -m.valor),
+    0
+  );
+  const saldoAtual = await getSaldoCaixaGeral();
+  let saldo = saldoAtual - totalMovimentado;
   return movimentos
     .map((m) => {
       saldo += m.tipo === "Entrada" ? m.valor : -m.valor;
@@ -56,14 +61,7 @@ export async function listarMovimentosComSaldo(): Promise<MovimentoComSaldo[]> {
 }
 
 export async function getSaldoAtual(): Promise<number> {
-  const saldoInicial = await getSaldoInicial();
-  const row = await dbGet<{ entradas: number; saidas: number }>(
-    `SELECT
-      COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN valor ELSE 0 END), 0) AS entradas,
-      COALESCE(SUM(CASE WHEN tipo = 'Saida' THEN valor ELSE 0 END), 0) AS saidas
-    FROM movimento_caixa`
-  );
-  return saldoInicial + (row?.entradas ?? 0) - (row?.saidas ?? 0);
+  return getSaldoCaixaGeral();
 }
 
 export async function getMovimento(id: number): Promise<MovimentoCaixa | null> {
@@ -74,12 +72,13 @@ export async function criarMovimento(input: MovimentoInput) {
   await dbRun(
     `INSERT INTO movimento_caixa (
       data, descricao, categoria, subcategoria, entidade, tipo, valor,
-      forma_pagamento, observacao, conta_pagar_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      forma_pagamento, observacao, conta_pagar_id, conta_bancaria_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.data, input.descricao, input.categoria, input.subcategoria,
       input.entidade, input.tipo, input.valor,
       input.forma_pagamento, input.observacao, input.conta_pagar_id,
+      input.conta_bancaria_id,
     ]
   );
   if (input.tipo === "Saida" && input.conta_pagar_id)
@@ -96,12 +95,13 @@ export async function atualizarMovimento(id: number, input: MovimentoInput) {
   await dbRun(
     `UPDATE movimento_caixa SET
       data = ?, descricao = ?, categoria = ?, subcategoria = ?, entidade = ?, tipo = ?,
-      valor = ?, forma_pagamento = ?, observacao = ?, conta_pagar_id = ?
+      valor = ?, forma_pagamento = ?, observacao = ?, conta_pagar_id = ?, conta_bancaria_id = ?
     WHERE id = ?`,
     [
       input.data, input.descricao, input.categoria, input.subcategoria,
       input.entidade, input.tipo, input.valor,
-      input.forma_pagamento, input.observacao, input.conta_pagar_id, id,
+      input.forma_pagamento, input.observacao, input.conta_pagar_id,
+      input.conta_bancaria_id, id,
     ]
   );
 

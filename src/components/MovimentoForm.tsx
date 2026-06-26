@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ENTIDADES, FORMAS_PAGAMENTO } from "@/lib/constants";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { CategoriaMovimentoRow, MovimentoCaixa as MovimentoType } from "@/lib/types";
+import { ContaBancariaComSaldo } from "@/lib/actions/contasBancarias";
 import { todayISO } from "@/lib/dates";
 
 interface ContaParaVinculo {
@@ -17,6 +18,7 @@ interface ContaParaVinculo {
 interface MovimentoFormProps {
   categorias: CategoriaMovimentoRow[];
   contasPendentes: ContaParaVinculo[];
+  contasBancarias: ContaBancariaComSaldo[];
   movimento?: MovimentoType | null;
   action: (formData: FormData) => void;
 }
@@ -24,6 +26,7 @@ interface MovimentoFormProps {
 export default function MovimentoForm({
   categorias,
   contasPendentes,
+  contasBancarias,
   movimento,
   action,
 }: MovimentoFormProps) {
@@ -150,6 +153,30 @@ export default function MovimentoForm({
             </select>
           </div>
         )}
+
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-zinc-700">Conta Bancária</label>
+          <select
+            name="conta_bancaria_id"
+            required
+            defaultValue={movimento?.conta_bancaria_id ?? ""}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-base"
+          >
+            <option value="" disabled>
+              Selecione...
+            </option>
+            {contasBancarias.map((c) => (
+              <optgroup key={c.id} label={c.nome}>
+                <option value={c.id}>{c.nome}</option>
+                {c.cofrinhos.map((cof) => (
+                  <option key={cof.id} value={cof.id}>
+                    🐷 {cof.nome}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-zinc-700">CNPJ/PF</label>

@@ -1,17 +1,17 @@
 import { listarCategorias, listarCategoriasMovimento } from "@/lib/actions/categorias";
-import { getSaldoInicial } from "@/lib/actions/configuracoes";
+import { listarContasBancariasComSaldo } from "@/lib/actions/contasBancarias";
 import CategoriaLista from "@/components/CategoriaLista";
 import CategoriaMovimentoLista from "@/components/CategoriaMovimentoLista";
-import SaldoInicialForm from "@/components/SaldoInicialForm";
+import ContasBancariasSection from "@/components/ContasBancariasSection";
 import ExportacoesSection from "@/components/ExportacoesSection";
 import ImportacaoSection from "@/components/ImportacaoSection";
 import { getPeriodo } from "@/lib/dates";
 
 export default async function ConfiguracoesPage() {
-  const [categoriasContas, categoriasMovimento, saldoInicial] = await Promise.all([
+  const [categoriasContas, categoriasMovimento, contasBancarias] = await Promise.all([
     listarCategorias("contas"),
     listarCategoriasMovimento(),
-    getSaldoInicial(),
+    listarContasBancariasComSaldo(),
   ]);
 
   const periodoAtual = getPeriodo("quinzena");
@@ -20,14 +20,7 @@ export default async function ConfiguracoesPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold text-zinc-800">Configurações</h1>
 
-      <div className="rounded-lg bg-white p-4 shadow">
-        <h2 className="mb-3 text-base font-semibold text-zinc-800">Saldo inicial</h2>
-        <p className="mb-3 text-sm text-zinc-500">
-          Usado como ponto de partida para o saldo acumulado do caixa. Defina
-          apenas uma vez.
-        </p>
-        <SaldoInicialForm saldoInicial={saldoInicial} />
-      </div>
+      <ContasBancariasSection contas={contasBancarias} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg bg-white p-4 shadow">

@@ -45,6 +45,7 @@ export interface MovimentoCaixa {
   forma_pagamento: string | null;
   observacao: string | null;
   conta_pagar_id: number | null;
+  conta_bancaria_id: number | null;
   criado_em: string;
 }
 

@@ -2,7 +2,7 @@
 
 import { dbAll, dbGet } from "@/lib/db";
 import { todayISO, getPeriodo, Periodo } from "@/lib/dates";
-import { getSaldoInicial } from "@/lib/actions/configuracoes";
+import { getSaldoCaixaGeral } from "@/lib/actions/contasBancarias";
 
 export interface ResumoPeriodo {
   totalEntradas: number;
@@ -89,15 +89,7 @@ export async function getResumoMesVigente(): Promise<ResumoMesVigente> {
     [hoje]
   );
 
-  const saldoInicial = await getSaldoInicial();
-  const caixaRow = await dbGet<{ entradas: number; saidas: number }>(
-    `SELECT
-      COALESCE(SUM(CASE WHEN tipo = 'Entrada' THEN valor ELSE 0 END), 0) AS entradas,
-      COALESCE(SUM(CASE WHEN tipo = 'Saida' THEN valor ELSE 0 END), 0) AS saidas
-     FROM movimento_caixa`
-  );
-  const saldoCaixa =
-    saldoInicial + (caixaRow?.entradas ?? 0) - (caixaRow?.saidas ?? 0);
+  const saldoCaixa = await getSaldoCaixaGeral();
 
   const totalMes = mesRow?.total ?? 0;
   const pago = mesRow?.pago ?? 0;

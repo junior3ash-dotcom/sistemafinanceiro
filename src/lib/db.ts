@@ -82,12 +82,36 @@ const SCHEMA_STMTS = [
     chave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS contas_bancarias (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    saldo_inicial REAL NOT NULL DEFAULT 0,
+    conta_pai_id INTEGER,
+    criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (conta_pai_id) REFERENCES contas_bancarias(id) ON DELETE CASCADE
+  )`,
 ];
 
 import { seedIfEmpty } from "./seed";
 
+async function ensureColumn(table: string, column: string, ddl: string): Promise<void> {
+  try {
+    const info = await client.execute(`PRAGMA table_info(${table})`);
+    const existe = info.rows.some((r) => (r as unknown as { name: string }).name === column);
+    if (!existe) await client.execute(ddl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("duplicate column name")) throw err;
+  }
+}
+
 export const ready: Promise<void> = (async () => {
   for (const sql of SCHEMA_STMTS) await client.execute(sql);
+  await ensureColumn(
+    "movimento_caixa",
+    "conta_bancaria_id",
+    "ALTER TABLE movimento_caixa ADD COLUMN conta_bancaria_id INTEGER REFERENCES contas_bancarias(id) ON DELETE SET NULL"
+  );
   await seedIfEmpty(client);
 })();
 

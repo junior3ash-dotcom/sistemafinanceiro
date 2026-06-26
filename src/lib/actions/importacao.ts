@@ -335,6 +335,7 @@ export async function validarImportacaoCaixa(
               forma_pagamento: formaPagamento,
               observacao,
               conta_pagar_id: null,
+              conta_bancaria_id: null,
             }
           : null,
     };
