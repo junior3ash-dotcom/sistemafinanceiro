@@ -3,11 +3,8 @@ import { listarContasMesVigenteEVencidas } from "@/lib/actions/contasPagar";
 import { listarCategorias } from "@/lib/actions/categorias";
 import { getResumoMesVigente } from "@/lib/actions/dashboard";
 import { ENTIDADES, PRIORIDADES, TIPOS_CONTA } from "@/lib/constants";
-import { formatBRL, formatDateBR } from "@/lib/format";
-import { getStatusExibicao } from "@/lib/statusConta";
-import StatusBadge from "@/components/StatusBadge";
-import CategoriaBadge from "@/components/CategoriaBadge";
-import ContaAcoes from "@/components/ContaAcoes";
+import { formatBRL } from "@/lib/format";
+import ContasLista from "@/components/ContasLista";
 
 interface PageProps {
   searchParams: Promise<{
@@ -203,56 +200,7 @@ export default async function ContasPage({ searchParams }: PageProps) {
         </button>
       </form>
 
-      <div className="flex flex-col gap-2">
-        {contas.length === 0 && (
-          <p className="rounded-lg bg-white p-4 text-center text-sm text-zinc-500 shadow">
-            Nenhuma conta encontrada para esse filtro.
-          </p>
-        )}
-
-        {contas.map((conta) => {
-          const status = getStatusExibicao(conta);
-          const parcelaLabel = conta.parcelas_total
-            ? ` (${conta.parcela_atual}/${conta.parcelas_total})`
-            : "";
-          return (
-            <div
-              key={conta.id}
-              className="flex flex-col gap-2 rounded-lg bg-white p-3 shadow sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={status} />
-                  <span className="font-medium text-zinc-800">
-                    {conta.descricao}
-                    {parcelaLabel}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
-                  <CategoriaBadge nome={conta.categoria} />
-                  <span>
-                    {conta.entidade} ·{" "}
-                    <span
-                      className={
-                        status === "Vencido"
-                          ? "font-semibold text-red-600"
-                          : ""
-                      }
-                    >
-                      {formatDateBR(conta.vencimento)}
-                    </span>{" "}
-                    ·{" "}
-                    <span className="font-semibold text-zinc-700">
-                      {formatBRL(conta.valor)}
-                    </span>
-                  </span>
-                </div>
-              </div>
-              <ContaAcoes id={conta.id} status={conta.status} />
-            </div>
-          );
-        })}
-      </div>
+      <ContasLista contas={contas} />
     </div>
   );
 }

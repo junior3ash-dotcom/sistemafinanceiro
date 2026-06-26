@@ -205,6 +205,16 @@ export async function excluirContaPagar(id: number) {
   revalidatePath("/caixa");
 }
 
+export async function excluirContasPagarEmLote(ids: number[]) {
+  for (const id of ids) {
+    await dbRun("DELETE FROM contas_pagar WHERE id = ?", [id]);
+    await dbRun("UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?", [id]);
+  }
+  revalidatePath("/contas");
+  revalidatePath("/");
+  revalidatePath("/caixa");
+}
+
 function calcularProximoVencimento(conta: ContaPagar): string | null {
   switch (conta.recorrencia) {
     case "Mensal": return addMonthsSameDayISO(conta.vencimento, 1);
@@ -248,6 +258,10 @@ export async function marcarContaComoPaga(id: number, dataPagamento: string = to
   revalidatePath("/contas");
   revalidatePath("/");
   revalidatePath("/caixa");
+}
+
+export async function marcarContasComoPagasEmLote(ids: number[]) {
+  for (const id of ids) await marcarContaComoPaga(id);
 }
 
 export async function marcarContaComoPendente(id: number) {

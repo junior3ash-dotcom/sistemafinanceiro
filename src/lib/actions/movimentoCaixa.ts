@@ -127,6 +127,18 @@ export async function excluirMovimento(id: number) {
   revalidatePath("/");
 }
 
+export async function excluirMovimentosEmLote(ids: number[]) {
+  for (const id of ids) {
+    const movimento = await getMovimento(id);
+    await dbRun("DELETE FROM movimento_caixa WHERE id = ?", [id]);
+    if (movimento?.conta_pagar_id)
+      await marcarContaComoPendente(movimento.conta_pagar_id);
+  }
+  revalidatePath("/caixa");
+  revalidatePath("/contas");
+  revalidatePath("/");
+}
+
 export async function listarContasParaVinculo() {
   return dbAll<{ id: number; descricao: string; categoria: string; valor: number; vencimento: string }>(
     `SELECT id, descricao, categoria, valor, vencimento
