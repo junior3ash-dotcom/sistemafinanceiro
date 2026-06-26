@@ -5,6 +5,7 @@ import {
 } from "@/lib/actions/movimentoCaixa";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import MovimentoAcoes from "@/components/MovimentoAcoes";
+import CategoriaBadge from "@/components/CategoriaBadge";
 
 export default async function CaixaPage() {
   const [movimentos, saldoAtual] = await Promise.all([
@@ -63,11 +64,13 @@ export default async function CaixaPage() {
                 </span>
                 <span className="font-medium text-zinc-800">{m.descricao}</span>
               </div>
-              <div className="text-sm text-zinc-500">
-                {formatDateBR(m.data)} · {m.categoria}
-                {m.subcategoria && ` / ${m.subcategoria}`} · {m.entidade}
+              <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+                <span>{formatDateBR(m.data)}</span>
+                <CategoriaBadge nome={m.categoria} />
+                {m.subcategoria && <span>{m.subcategoria}</span>}
+                <span>· {m.entidade}</span>
                 {m.conta_pagar_id && (
-                  <span className="ml-1 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
+                  <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
                     vinculado a conta #{m.conta_pagar_id}
                   </span>
                 )}

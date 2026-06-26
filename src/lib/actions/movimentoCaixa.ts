@@ -87,7 +87,6 @@ export async function criarMovimento(input: MovimentoInput) {
 
   revalidatePath("/caixa");
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
 }
 
@@ -114,7 +113,6 @@ export async function atualizarMovimento(id: number, input: MovimentoInput) {
 
   revalidatePath("/caixa");
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
 }
 
@@ -126,7 +124,6 @@ export async function excluirMovimento(id: number) {
 
   revalidatePath("/caixa");
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
 }
 

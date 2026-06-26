@@ -6,7 +6,6 @@ import { logoutAction } from "@/app/login/actions";
 
 const LINKS = [
   { href: "/", label: "Resumo" },
-  { href: "/contas/proximos", label: "Próximos 15 dias" },
   { href: "/contas", label: "Contas a Pagar" },
   { href: "/caixa", label: "Caixa" },
   { href: "/configuracoes", label: "Configurações" },

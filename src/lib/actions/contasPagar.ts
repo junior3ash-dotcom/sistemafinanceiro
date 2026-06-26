@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { dbAll, dbGet, dbRun } from "@/lib/db";
-import { addDaysISO, addMonthsSameDayISO, todayISO } from "@/lib/dates";
+import { addDaysISO, addMonthsSameDayISO, getPeriodo, todayISO } from "@/lib/dates";
 import { ContaPagar, Entidade, Prioridade, Recorrencia, TipoConta } from "@/lib/types";
 
 export interface ContaPagarInput {
@@ -69,12 +69,36 @@ export async function getContaPagar(id: number): Promise<ContaPagar | null> {
   return dbGet<ContaPagar>(`${SELECT_BASE} WHERE id = ?`, [id]);
 }
 
-export async function listarProximos15Dias(): Promise<ContaPagar[]> {
-  const limite = addDaysISO(todayISO(), 15);
-  return dbAll<ContaPagar>(
-    `${SELECT_BASE} WHERE status = 'Pendente' AND vencimento <= ? ORDER BY vencimento ASC, id ASC`,
-    [limite]
-  );
+export async function listarContasMesVigenteEVencidas(
+  filtros: FiltrosContasPagar = {}
+): Promise<ContaPagar[]> {
+  const hoje = todayISO();
+  const periodoMes = getPeriodo("mes");
+
+  const cond: string[] = [
+    "((vencimento >= ? AND vencimento <= ?) OR (status = 'Pendente' AND vencimento < ?))",
+  ];
+  const params: (string | number)[] = [periodoMes.inicio, periodoMes.fim, hoje];
+
+  if (filtros.categoria) { cond.push("categoria = ?"); params.push(filtros.categoria); }
+  if (filtros.entidade) { cond.push("entidade = ?"); params.push(filtros.entidade); }
+  if (filtros.tipo) { cond.push("tipo = ?"); params.push(filtros.tipo); }
+  if (filtros.prioridade) { cond.push("prioridade = ?"); params.push(filtros.prioridade); }
+
+  if (filtros.status === "Pago") {
+    cond.push("status = 'Pago'");
+  } else if (filtros.status === "Pendente") {
+    cond.push("status = 'Pendente' AND vencimento >= ?");
+    params.push(hoje);
+  } else if (filtros.status === "Vencido") {
+    cond.push("status = 'Pendente' AND vencimento < ?");
+    params.push(hoje);
+  } else if (filtros.status === "Abertas") {
+    cond.push("status = 'Pendente'");
+  }
+
+  const where = `WHERE ${cond.join(" AND ")}`;
+  return dbAll<ContaPagar>(`${SELECT_BASE} ${where} ORDER BY vencimento ASC, id ASC`, params);
 }
 
 async function inserirConta(
@@ -149,7 +173,6 @@ export async function criarContaPagar(input: ContaPagarInput): Promise<number[]>
   }
 
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
   return ids;
@@ -170,7 +193,6 @@ export async function atualizarContaPagar(id: number, input: ContaPagarInput) {
     ]
   );
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
 }
@@ -179,7 +201,6 @@ export async function excluirContaPagar(id: number) {
   await dbRun("DELETE FROM contas_pagar WHERE id = ?", [id]);
   await dbRun("UPDATE movimento_caixa SET conta_pagar_id = NULL WHERE conta_pagar_id = ?", [id]);
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
 }
@@ -225,7 +246,6 @@ export async function marcarContaComoPaga(id: number, dataPagamento: string = to
   }
 
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
 }
@@ -240,7 +260,6 @@ export async function marcarContaComoPendente(id: number) {
     [id]
   );
   revalidatePath("/contas");
-  revalidatePath("/contas/proximos");
   revalidatePath("/");
   revalidatePath("/caixa");
 }

@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { listarContasPagar } from "@/lib/actions/contasPagar";
+import { listarContasMesVigenteEVencidas } from "@/lib/actions/contasPagar";
 import { listarCategorias } from "@/lib/actions/categorias";
+import { getResumoMesVigente } from "@/lib/actions/dashboard";
 import { ENTIDADES, PRIORIDADES, TIPOS_CONTA } from "@/lib/constants";
 import { formatBRL, formatDateBR } from "@/lib/format";
 import { getStatusExibicao } from "@/lib/statusConta";
 import StatusBadge from "@/components/StatusBadge";
+import CategoriaBadge from "@/components/CategoriaBadge";
 import ContaAcoes from "@/components/ContaAcoes";
 
 interface PageProps {
@@ -20,8 +22,8 @@ interface PageProps {
 export default async function ContasPage({ searchParams }: PageProps) {
   const filtros = await searchParams;
 
-  const [contas, categorias] = await Promise.all([
-    listarContasPagar({
+  const [contas, categorias, resumo] = await Promise.all([
+    listarContasMesVigenteEVencidas({
       status: filtros.status as
         | "Vencido"
         | "Pendente"
@@ -34,7 +36,14 @@ export default async function ContasPage({ searchParams }: PageProps) {
       prioridade: filtros.prioridade,
     }),
     listarCategorias("contas"),
+    getResumoMesVigente(),
   ]);
+
+  const percentSaldoNecessario =
+    resumo.valorNecessario > 0
+      ? Math.min(100, Math.round((resumo.saldoCaixa / resumo.valorNecessario) * 100))
+      : 100;
+  const saldoSuficiente = resumo.saldoCaixa >= resumo.valorNecessario;
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,6 +55,79 @@ export default async function ContasPage({ searchParams }: PageProps) {
         >
           + Nova conta
         </Link>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">Total do Mês</div>
+          <div className="text-lg font-semibold text-zinc-800">{formatBRL(resumo.totalMes)}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">Pago</div>
+          <div className="text-lg font-semibold text-green-700">{formatBRL(resumo.pago)}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">Restante</div>
+          <div className="text-lg font-semibold text-amber-700">{formatBRL(resumo.restante)}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">Dias no Mês</div>
+          <div className="text-lg font-semibold text-zinc-800">{resumo.diasRestantesMes}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">% Pago</div>
+          <div className="text-lg font-semibold text-zinc-800">{resumo.percentPago}%</div>
+          <div className="mt-1 h-1.5 w-full rounded-full bg-zinc-100">
+            <div
+              className="h-1.5 rounded-full bg-green-500"
+              style={{ width: `${resumo.percentPago}%` }}
+            />
+          </div>
+        </div>
+        <div className="rounded-lg bg-white p-3 shadow">
+          <div className="text-xs text-zinc-500">Saldo Caixa</div>
+          <div
+            className={`text-lg font-semibold ${resumo.saldoCaixa >= 0 ? "text-green-700" : "text-red-700"}`}
+          >
+            {formatBRL(resumo.saldoCaixa)}
+          </div>
+        </div>
+      </div>
+
+      {resumo.qtdVencidas > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border-l-4 border-red-500 bg-red-50 p-3">
+          <div className="flex items-center gap-2 text-sm text-red-800">
+            <span className="font-semibold">
+              {resumo.qtdVencidas} {resumo.qtdVencidas === 1 ? "conta vencida" : "contas vencidas"}
+            </span>
+            <span>· Total: {formatBRL(resumo.totalVencidas)}</span>
+          </div>
+          <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold text-white">
+            URGENTE
+          </span>
+        </div>
+      )}
+
+      <div className="rounded-lg bg-white p-4 shadow">
+        <div className="mb-2 flex items-center justify-between text-sm">
+          <span className="font-semibold text-zinc-800">
+            Saldo em caixa x Necessário para pagar tudo
+          </span>
+          <span className={saldoSuficiente ? "text-green-700" : "text-red-700"}>
+            {formatBRL(resumo.saldoCaixa)} / {formatBRL(resumo.valorNecessario)}
+          </span>
+        </div>
+        <div className="h-3 w-full rounded-full bg-zinc-100">
+          <div
+            className={`h-3 rounded-full ${saldoSuficiente ? "bg-green-500" : "bg-red-500"}`}
+            style={{ width: `${percentSaldoNecessario}%` }}
+          />
+        </div>
+        <p className="mt-1 text-xs text-zinc-500">
+          {saldoSuficiente
+            ? "Você tem saldo suficiente para cobrir as contas do mês e as vencidas."
+            : `Faltam ${formatBRL(resumo.valorNecessario - resumo.saldoCaixa)} para cobrir tudo.`}
+        </p>
       </div>
 
       <form className="grid grid-cols-2 gap-2 rounded-lg bg-white p-3 shadow sm:grid-cols-5" method="get">
@@ -146,11 +228,23 @@ export default async function ContasPage({ searchParams }: PageProps) {
                     {parcelaLabel}
                   </span>
                 </div>
-                <div className="text-sm text-zinc-500">
-                  {conta.categoria} · {conta.entidade} ·{" "}
-                  {formatDateBR(conta.vencimento)} ·{" "}
-                  <span className="font-semibold text-zinc-700">
-                    {formatBRL(conta.valor)}
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <CategoriaBadge nome={conta.categoria} />
+                  <span>
+                    {conta.entidade} ·{" "}
+                    <span
+                      className={
+                        status === "Vencido"
+                          ? "font-semibold text-red-600"
+                          : ""
+                      }
+                    >
+                      {formatDateBR(conta.vencimento)}
+                    </span>{" "}
+                    ·{" "}
+                    <span className="font-semibold text-zinc-700">
+                      {formatBRL(conta.valor)}
+                    </span>
                   </span>
                 </div>
               </div>

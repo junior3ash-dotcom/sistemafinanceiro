@@ -24,9 +24,9 @@ export default function ContaAcoes({
         <button
           disabled={pending}
           onClick={() => startTransition(() => marcarContaComoPaga(id))}
-          className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+          className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
         >
-          Marcar como paga
+          Pagar
         </button>
       ) : (
         <button
